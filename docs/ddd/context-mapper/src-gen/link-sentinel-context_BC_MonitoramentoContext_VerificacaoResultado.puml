@@ -1,0 +1,81 @@
+@startuml
+
+skinparam componentStyle uml2
+
+package "'VerificacaoResultado' Aggregate" <<Rectangle>> {
+	class ResultadoVerificacao <<(A,#fffab8) Aggregate Root>> {
+		String status
+		long responseTime
+		Date timestamp
+		String[0..1] failureReason
+		ResultadoVerificacaoId id
+		LinkId linkId
+		ScoreRiscoPhishing scoreRisco
+	}
+	class ResultadoVerificacaoId <<(V,DarkSeaGreen) Value Object>> {
+		Long valor
+	}
+	class StatusHttp <<(V,DarkSeaGreen) Value Object>> {
+		String codigo
+	}
+	class TempoRespostaMs <<(V,DarkSeaGreen) Value Object>> {
+		long valor
+	}
+	class ScoreRiscoPhishing <<(V,DarkSeaGreen) Value Object>> {
+		double score
+		List<String>[0..1] indicadores
+		RiscoNivel nivel
+	}
+	enum RiscoNivel {
+		BAIXO
+		MEDIO
+		ALTO
+		INDETERMINADO
+	}
+	class EventoVerificacao <<(E,#ff9f4b) Domain Event>> {
+		Date dataHoraEvento
+		LinkId linkId
+	}
+	class LinkVerificacaoConcluida <<(E,#ff9f4b) Domain Event>> {
+		ResultadoVerificacaoId resultadoId
+		StatusHttp status
+	}
+	class RiscoPhishingAltoDetectado <<(E,#ff9f4b) Domain Event>> {
+		ScoreRiscoPhishing scoreRisco
+		URL targetUrl
+	}
+	class LinkIndisponivelDetectado <<(E,#ff9f4b) Domain Event>> {
+		String motivoFalha
+		StatusHttp status
+		URL targetUrl
+	}
+	class LinkVerificationService <<(S,DarkSeaGreen) Service>> {
+		ResultadoVerificacao verificarLink(LinkId linkId, URL targetUrl)
+		void verificarLinkComDecorators(LinkId linkId, URL targetUrl)
+	}
+	class MonitoringService <<(S,DarkSeaGreen) Service>> {
+		void agendarVerificacaoPeriodica(LinkId linkId)
+		void executarVerificacoesAgendadas()
+	}
+	class ThreatChecker <<(S,DarkSeaGreen) Service>> {
+		ScoreRiscoPhishing analisarRisco(URL targetUrl)
+		boolean isPhishing(URL targetUrl)
+	}
+	class NotificadorServico <<(S,DarkSeaGreen) Service>> {
+		void notificarLinkOffline(LinkId linkId, URL targetUrl)
+		void notificarRiscoAlto(LinkId linkId, ScoreRiscoPhishing score)
+	}
+}
+LinkVerificacaoConcluida --> ResultadoVerificacaoId : resultadoId
+ResultadoVerificacao --> ResultadoVerificacaoId : id
+LinkIndisponivelDetectado --> StatusHttp : status
+ResultadoVerificacao --> ScoreRiscoPhishing : scoreRisco
+ScoreRiscoPhishing --> RiscoNivel : nivel
+RiscoPhishingAltoDetectado --> ScoreRiscoPhishing : scoreRisco
+LinkVerificacaoConcluida --> StatusHttp : status
+LinkVerificacaoConcluida --|> EventoVerificacao
+RiscoPhishingAltoDetectado --|> EventoVerificacao
+LinkIndisponivelDetectado --|> EventoVerificacao
+
+
+@enduml

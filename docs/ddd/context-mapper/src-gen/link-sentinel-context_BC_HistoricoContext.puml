@@ -1,0 +1,59 @@
+@startuml
+
+skinparam componentStyle uml2
+
+package "'VisualizacaoHistorico' Aggregate" <<Rectangle>> {
+	class VisualizacaoHistoricoLink <<(A,#fffab8) Aggregate Root>> {
+		double uptimePercentual
+		LinkId linkId
+		URL urlSnapshot
+		List<LogVerificacao> historico
+	}
+	class LogVerificacao <<(V,DarkSeaGreen) Value Object>> {
+		Date dataHora
+		String statusHttp
+		MonitoramentoContext.VerificacaoResultado.ScoreRiscoPhishing scoreRisco
+		long tempoResposta
+	}
+	class HistoryService <<(S,DarkSeaGreen) Service>> {
+		VisualizacaoHistoricoLink obterHistoricoLink(LinkId linkId)
+		double calcularUptime(LinkId linkId, Periodo periodo)
+		RelatorioUptimeLink gerarRelatorioUptime(LinkId linkId)
+	}
+}
+package "'RelatorioUptime' Aggregate" <<Rectangle>> {
+	class RelatorioUptimeLink <<(A,#fffab8) Aggregate Root>> {
+		Date dataGeracao
+		int totalVerificacoes
+		int verificacoesSucesso
+		int verificacoesFalha
+		RelatorioUptimeId id
+		LinkId linkId
+		URL urlSnapshot
+		Periodo periodoAnalise
+		PorcentagemUptime uptime
+	}
+	class RelatorioUptimeId <<(V,DarkSeaGreen) Value Object>> {
+		Long valor
+	}
+	class PorcentagemUptime <<(V,DarkSeaGreen) Value Object>> {
+		double valor
+		boolean isAlto()
+		boolean isMedio()
+		boolean isBaixo()
+	}
+	class Periodo <<(V,DarkSeaGreen) Value Object>> {
+		Date inicio
+		Date fim
+	}
+}
+RelatorioUptimeLink --> Periodo : periodoAnalise
+VisualizacaoHistoricoLink "1" *--> "*" LogVerificacao : historico
+RelatorioUptimeLink --> RelatorioUptimeId : id
+RelatorioUptimeLink --> PorcentagemUptime : uptime
+legend left
+  This bounded context implements the subdomain 'RelatoriosHistorico'.
+end legend
+
+
+@enduml

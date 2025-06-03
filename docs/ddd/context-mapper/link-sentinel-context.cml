@@ -1,0 +1,180 @@
+Domain LinkSentinel_Domain {
+    Subdomain GerenciamentoContas
+    Subdomain GerenciamentoLinks
+    Subdomain VerificacaoMonitoramento
+    Subdomain AnaliseRiscoPhishing
+    Subdomain Notificacoes
+    Subdomain RelatoriosHistorico
+}
+
+ContextMap {
+    contains OrganizacaoContext
+    contains MonitoramentoContext
+    contains HistoricoContext
+
+    OrganizacaoContext Shared-Kernel MonitoramentoContext
+    MonitoramentoContext Shared-Kernel OrganizacaoContext
+
+    OrganizacaoContext Shared-Kernel HistoricoContext
+    HistoricoContext Shared-Kernel OrganizacaoContext
+
+    MonitoramentoContext Shared-Kernel HistoricoContext
+    HistoricoContext Shared-Kernel MonitoramentoContext
+}
+
+BoundedContext OrganizacaoContext implements GerenciamentoContas, GerenciamentoLinks {
+    Aggregate Usuario {
+        Entity Usuario {
+            aggregateRoot
+            -UsuarioId id
+            String username
+            -Email emailAddress
+            -SenhaHash passwordHash
+        }
+        ValueObject UsuarioId { Long valor }
+        ValueObject Email { String endereco }
+        ValueObject SenhaHash { String valor }
+    }
+
+    Aggregate Link {
+        Service UserService {
+            @Usuario registrarUsuario(String username, String emailAddress, String password);
+            @Usuario carregarUsuario(String username);
+        }
+
+        Service SecurityService {
+            boolean autenticar(String username, String password);
+            String gerarTokenJWT(@Usuario usuario);
+        }
+
+        Service LinkService {
+            @Link adicionarLink(@UsuarioId userId, @URL linkUrl);
+            List<@Link> listarLinks(@UsuarioId userId);
+            void deletarLink(@LinkId linkId);
+        }
+
+        Entity Link {
+            aggregateRoot
+            -LinkId id
+            -URL linkAddress
+            -UsuarioId userId
+            boolean monitorado
+        }
+        ValueObject LinkId { Long valor }
+        ValueObject URL { String valor }
+    }
+}
+
+BoundedContext MonitoramentoContext implements VerificacaoMonitoramento, AnaliseRiscoPhishing, Notificacoes {
+    Aggregate VerificacaoResultado {
+        Service LinkVerificationService {
+            @ResultadoVerificacao verificarLink(@LinkId linkId, @URL targetUrl);
+            void verificarLinkComDecorators(@LinkId linkId, @URL targetUrl);
+        }
+
+        Service MonitoringService {
+            void agendarVerificacaoPeriodica(@LinkId linkId);
+            void executarVerificacoesAgendadas();
+        }
+
+        Service ThreatChecker {
+            @ScoreRiscoPhishing analisarRisco(@URL targetUrl);
+            boolean isPhishing(@URL targetUrl);
+        }
+
+        Service NotificadorServico {
+            void notificarLinkOffline(@LinkId linkId, @URL targetUrl);
+            void notificarRiscoAlto(@LinkId linkId, @ScoreRiscoPhishing score);
+        }
+
+        Entity ResultadoVerificacao {
+            aggregateRoot
+            -ResultadoVerificacaoId id
+            -LinkId linkId
+            String status
+            long responseTime
+            Date timestamp
+            String failureReason nullable
+            -ScoreRiscoPhishing scoreRisco
+        }
+        ValueObject ResultadoVerificacaoId { Long valor }
+        ValueObject StatusHttp { String codigo }
+        ValueObject TempoRespostaMs { long valor }
+        ValueObject ScoreRiscoPhishing {
+            -RiscoNivel nivel
+            double score
+            List<String> indicadores nullable
+        }
+        enum RiscoNivel { 
+            BAIXO, MEDIO, ALTO, INDETERMINADO 
+        }
+
+        DomainEvent EventoVerificacao {
+            -LinkId linkId
+            Date dataHoraEvento
+        }
+        DomainEvent LinkVerificacaoConcluida extends EventoVerificacao {
+            -ResultadoVerificacaoId resultadoId
+            -StatusHttp status
+        }
+        DomainEvent RiscoPhishingAltoDetectado extends EventoVerificacao {
+            -ScoreRiscoPhishing scoreRisco
+            -URL targetUrl
+        }
+        DomainEvent LinkIndisponivelDetectado extends EventoVerificacao {
+            -StatusHttp status
+            -URL targetUrl
+            String motivoFalha
+        }
+    }
+}
+
+BoundedContext HistoricoContext implements RelatoriosHistorico {
+    Aggregate VisualizacaoHistorico {
+        Service HistoryService {
+            @VisualizacaoHistoricoLink obterHistoricoLink(@LinkId linkId);
+            double calcularUptime(@LinkId linkId, @Periodo periodo);
+            @RelatorioUptimeLink gerarRelatorioUptime(@LinkId linkId);
+        }
+
+        Entity VisualizacaoHistoricoLink {
+            aggregateRoot
+            -LinkId linkId
+            -URL urlSnapshot
+            -List<LogVerificacao> historico
+            double uptimePercentual
+        }
+        ValueObject LogVerificacao {
+            Date dataHora
+            String statusHttp
+            MonitoramentoContext.VerificacaoResultado.ScoreRiscoPhishing scoreRisco
+            long tempoResposta
+        }
+    }
+
+    Aggregate RelatorioUptime {
+        Entity RelatorioUptimeLink {
+            aggregateRoot
+            -RelatorioUptimeId id
+            -LinkId linkId
+            -URL urlSnapshot
+            Date dataGeracao
+            -Periodo periodoAnalise
+            -PorcentagemUptime uptime
+            int totalVerificacoes
+            int verificacoesSucesso
+            int verificacoesFalha
+        }
+        ValueObject RelatorioUptimeId { Long valor }
+        ValueObject PorcentagemUptime { 
+            double valor
+            def boolean isAlto(); // return valor >= 95.0
+            def boolean isMedio(); // return valor >= 80.0 && valor < 95.0
+            def boolean isBaixo(); // return valor < 80.0
+        }
+        ValueObject Periodo {
+            Date inicio
+            Date fim
+        }
+    }
+}

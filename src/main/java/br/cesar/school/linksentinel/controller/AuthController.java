@@ -19,7 +19,6 @@ public class AuthController {
 
     private final UserService userService;
 
-    // Endpoint para registrar um novo usuário via API (útil para testes ou integrações)
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequestDto registerRequest) {
         try {
@@ -31,5 +30,4 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ocorreu um erro ao registrar o usuário.");
         }
     }
-    // Removemos o endpoint /login daqui, pois será tratado pelo Vaadin/Spring Security.
 }

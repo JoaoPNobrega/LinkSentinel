@@ -1,0 +1,27 @@
+@startuml
+
+skinparam componentStyle uml2
+
+package "'VisualizacaoHistorico' Aggregate" <<Rectangle>> {
+	class VisualizacaoHistoricoLink <<(A,#fffab8) Aggregate Root>> {
+		double uptimePercentual
+		LinkId linkId
+		URL urlSnapshot
+		List<LogVerificacao> historico
+	}
+	class LogVerificacao <<(V,DarkSeaGreen) Value Object>> {
+		Date dataHora
+		String statusHttp
+		MonitoramentoContext.VerificacaoResultado.ScoreRiscoPhishing scoreRisco
+		long tempoResposta
+	}
+	class HistoryService <<(S,DarkSeaGreen) Service>> {
+		VisualizacaoHistoricoLink obterHistoricoLink(LinkId linkId)
+		double calcularUptime(LinkId linkId, Periodo periodo)
+		RelatorioUptimeLink gerarRelatorioUptime(LinkId linkId)
+	}
+}
+VisualizacaoHistoricoLink "1" *--> "*" LogVerificacao : historico
+
+
+@enduml

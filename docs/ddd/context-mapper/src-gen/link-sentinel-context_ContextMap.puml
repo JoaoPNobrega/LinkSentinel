@@ -1,0 +1,23 @@
+@startuml
+
+skinparam componentStyle uml2
+
+component [OrganizacaoContext]
+component [MonitoramentoContext]
+component [HistoricoContext]
+
+[OrganizacaoContext]<-->[MonitoramentoContext] : Shared Kernel
+
+[MonitoramentoContext]<-->[OrganizacaoContext] : Shared Kernel
+
+[OrganizacaoContext]<-->[HistoricoContext] : Shared Kernel
+
+[HistoricoContext]<-->[OrganizacaoContext] : Shared Kernel
+
+[MonitoramentoContext]<-->[HistoricoContext] : Shared Kernel
+
+[HistoricoContext]<-->[MonitoramentoContext] : Shared Kernel
+
+
+
+@enduml

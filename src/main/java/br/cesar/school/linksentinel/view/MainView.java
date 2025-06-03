@@ -1,4 +1,3 @@
-// Local: src/main/java/br/cesar/school/linksentinel/view/MainView.java
 package br.cesar.school.linksentinel.view;
 
 import br.cesar.school.linksentinel.model.User;
@@ -105,27 +104,24 @@ public class MainView extends VerticalLayout {
         actionsLayout.setJustifyContentMode(JustifyContentMode.CENTER);
         actionsLayout.setWidthFull();
 
-        // Adicionar tudo ao layout principal do dashboard
-        // Para garantir que o conteúdo não ocupe a tela inteira e fique centralizado:
         VerticalLayout contentWrapper = new VerticalLayout(welcomeTitle, subtitle, statsLayout, actionsTitle, actionsLayout);
         contentWrapper.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-        contentWrapper.setMaxWidth("900px"); // Largura máxima para o conteúdo do dashboard
-        contentWrapper.getStyle().set("margin", "0 auto"); // Centraliza o wrapper
+        contentWrapper.setMaxWidth("900px");
+        contentWrapper.getStyle().set("margin", "0 auto");
 
         add(contentWrapper);
     }
 
     private VerticalLayout createStatCard(String title, String value, VaadinIcon iconEnum, String description) {
         Icon icon = iconEnum.create();
-        icon.setSize("32px"); // Ícone um pouco maior
+        icon.setSize("32px");
         icon.addClassName(LumoUtility.TextColor.PRIMARY);
-        // icon.getStyle().set("margin-bottom", LumoUtility.Gap.SMALL); // Movido para o cardInfo
 
         Span valueSpan = new Span(value);
-        valueSpan.addClassNames(LumoUtility.FontSize.XXXLARGE, LumoUtility.FontWeight.BOLD, LumoUtility.TextColor.HEADER); // Valor mais destacado
+        valueSpan.addClassNames(LumoUtility.FontSize.XXXLARGE, LumoUtility.FontWeight.BOLD, LumoUtility.TextColor.HEADER);
 
         Span titleSpan = new Span(title);
-        titleSpan.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.TextColor.BODY); // Título do card
+        titleSpan.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.TextColor.BODY);
 
         Paragraph descParagraph = new Paragraph(description);
         descParagraph.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
@@ -136,23 +132,23 @@ public class MainView extends VerticalLayout {
         VerticalLayout cardInfo = new VerticalLayout(icon, valueSpan, titleSpan, descParagraph);
         cardInfo.setAlignItems(Alignment.CENTER); 
         cardInfo.setPadding(false);
-        cardInfo.setSpacing(true); // Adiciona espaçamento interno
+        cardInfo.setSpacing(true);
         cardInfo.getStyle().set("line-height", "1.3");
 
 
         VerticalLayout card = new VerticalLayout(cardInfo);
-        card.setAlignItems(Alignment.CENTER); // Card centraliza seu conteúdo
+        card.setAlignItems(Alignment.CENTER);
         card.addClassNames(
                 LumoUtility.Background.BASE,
                 LumoUtility.BorderRadius.LARGE,
-                LumoUtility.Padding.Horizontal.LARGE, // Padding horizontal
-                LumoUtility.Padding.Vertical.MEDIUM,  // Padding vertical
+                LumoUtility.Padding.Horizontal.LARGE,
+                LumoUtility.Padding.Vertical.MEDIUM,
                 LumoUtility.BoxShadow.MEDIUM 
         );
         card.setWidth("250px"); 
         card.setHeight("200px");
-        card.setJustifyContentMode(JustifyContentMode.CENTER); // Centraliza verticalmente o conteúdo do card
-        card.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)"); // Borda sutil
+        card.setJustifyContentMode(JustifyContentMode.CENTER);
+        card.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)");
 
         return card;
     }

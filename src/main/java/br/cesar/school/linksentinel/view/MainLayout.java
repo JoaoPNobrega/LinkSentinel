@@ -3,7 +3,7 @@ package br.cesar.school.linksentinel.view;
 import br.cesar.school.linksentinel.service.SecurityService;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
-import com.vaadin.flow.component.html.Anchor; // <-- IMPORTANTE: Usaremos Anchor
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -17,7 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 public class MainLayout extends AppLayout {
 
-    private final SecurityService securityService; // Usado para pegar o nome do usuário
+    private final SecurityService securityService;
 
     public MainLayout(SecurityService securityService) {
         this.securityService = securityService;
@@ -44,29 +44,25 @@ public class MainLayout extends AppLayout {
             );
         }
 
-        // *** MUDANÇA AQUI: Usando Anchor para o Logout e redirecionando para /login ***
-        Anchor logoutLink = new Anchor("/login", "Sair"); // Alterado o href para "/login"
-        logoutLink.getElement().setAttribute("router-ignore", ""); // Adicionado para que o Vaadin não tente rotear internamente
+        Anchor logoutLink = new Anchor("/login", "Sair");
+        logoutLink.getElement().setAttribute("router-ignore", "");
 
         Icon logoutIcon = VaadinIcon.SIGN_OUT.create();
         logoutIcon.getStyle().set("margin-right", LumoUtility.Margin.Right.XSMALL);
-        logoutLink.getElement().insertChild(0, logoutIcon.getElement()); // Adiciona ícone antes do texto "Sair"
+        logoutLink.getElement().insertChild(0, logoutIcon.getElement());
 
-        // Estilizando o Anchor para parecer um botão sutil
         logoutLink.getStyle()
             .set("text-decoration", "none")
-            .set("color", "var(--lumo-tertiary-text-color)") // Cor mais sutil
+            .set("color", "var(--lumo-tertiary-text-color)")
             .set("padding", "var(--lumo-space-s) var(--lumo-space-m)")
             .set("border-radius", "var(--lumo-border-radius-m)")
             .set("font-size", "var(--lumo-font-size-s)")
             .set("font-weight", "500")
-            .set("line-height", "1"); // Para alinhar melhor com outros botões/texto
+            .set("line-height", "1");
         logoutLink.getElement().getStyle().set("cursor", "pointer");
 
-        // Efeito hover simples para o Anchor
         logoutLink.getElement().addEventListener("mouseover", e -> logoutLink.getStyle().set("background-color", "var(--lumo-contrast-5pct)"));
         logoutLink.getElement().addEventListener("mouseout", e -> logoutLink.getStyle().remove("background-color"));
-        // *** FIM DA MUDANÇA PARA ANCHOR ***
 
         HorizontalLayout headerRight = new HorizontalLayout(usernameSpan, logoutLink);
         headerRight.setAlignItems(FlexComponent.Alignment.CENTER);

@@ -1,4 +1,3 @@
-// Local: src/main/java/br/cesar/school/linksentinel/view/RegisterView.java
 package br.cesar.school.linksentinel.view;
 
 import br.cesar.school.linksentinel.dto.RegisterRequestDto;
@@ -23,12 +22,12 @@ import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import lombok.extern.slf4j.Slf4j; // <-- ADICIONAR ESTA IMPORTAÇÃO
+import lombok.extern.slf4j.Slf4j;
 
 @Route("register")
 @PageTitle("Registrar | Link Sentinel")
 @AnonymousAllowed
-@Slf4j // <-- ADICIONAR ESTA ANOTAÇÃO
+@Slf4j
 public class RegisterView extends VerticalLayout {
 
     private final UserService userService;
@@ -113,7 +112,7 @@ public class RegisterView extends VerticalLayout {
         } catch (Exception e) {
             Notification.show("Ocorreu um erro inesperado durante o registro.", 3000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            log.error("Erro no registro: ", e); // Agora o 'log' deve funcionar
+            log.error("Erro no registro: ", e);
         }
     }
 }

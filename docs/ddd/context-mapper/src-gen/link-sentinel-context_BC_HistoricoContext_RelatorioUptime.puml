@@ -1,0 +1,36 @@
+@startuml
+
+skinparam componentStyle uml2
+
+package "'RelatorioUptime' Aggregate" <<Rectangle>> {
+	class RelatorioUptimeLink <<(A,#fffab8) Aggregate Root>> {
+		Date dataGeracao
+		int totalVerificacoes
+		int verificacoesSucesso
+		int verificacoesFalha
+		RelatorioUptimeId id
+		LinkId linkId
+		URL urlSnapshot
+		Periodo periodoAnalise
+		PorcentagemUptime uptime
+	}
+	class RelatorioUptimeId <<(V,DarkSeaGreen) Value Object>> {
+		Long valor
+	}
+	class PorcentagemUptime <<(V,DarkSeaGreen) Value Object>> {
+		double valor
+		boolean isAlto()
+		boolean isMedio()
+		boolean isBaixo()
+	}
+	class Periodo <<(V,DarkSeaGreen) Value Object>> {
+		Date inicio
+		Date fim
+	}
+}
+RelatorioUptimeLink --> Periodo : periodoAnalise
+RelatorioUptimeLink --> RelatorioUptimeId : id
+RelatorioUptimeLink --> PorcentagemUptime : uptime
+
+
+@enduml

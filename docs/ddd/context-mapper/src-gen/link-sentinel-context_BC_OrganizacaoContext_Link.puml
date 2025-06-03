@@ -1,0 +1,36 @@
+@startuml
+
+skinparam componentStyle uml2
+
+package "'Link' Aggregate" <<Rectangle>> {
+	class Link <<(A,#fffab8) Aggregate Root>> {
+		boolean monitorado
+		LinkId id
+		URL linkAddress
+		UsuarioId userId
+	}
+	class LinkId <<(V,DarkSeaGreen) Value Object>> {
+		Long valor
+	}
+	class URL <<(V,DarkSeaGreen) Value Object>> {
+		String valor
+	}
+	class UserService <<(S,DarkSeaGreen) Service>> {
+		Usuario registrarUsuario(String username, String emailAddress, String password)
+		Usuario carregarUsuario(String username)
+	}
+	class SecurityService <<(S,DarkSeaGreen) Service>> {
+		boolean autenticar(String username, String password)
+		String gerarTokenJWT(Usuario usuario)
+	}
+	class LinkService <<(S,DarkSeaGreen) Service>> {
+		Link adicionarLink(UsuarioId userId, URL linkUrl)
+		List<Link> listarLinks(UsuarioId userId)
+		void deletarLink(LinkId linkId)
+	}
+}
+Link --> URL : linkAddress
+Link --> LinkId : id
+
+
+@enduml
