@@ -14,54 +14,50 @@ import java.time.Duration;
 @Component
 public class BaseHttpVerifier implements LinkVerifier {
 
-    // Usando o HttpClient moderno do Java
     private final HttpClient httpClient;
 
     public BaseHttpVerifier() {
-        // Configura o HttpClient para NÃO seguir redirects e ter um timeout
         this.httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER) // <-- Não seguir redirects!
-                .connectTimeout(Duration.ofSeconds(10)) // Timeout de conexão
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
     @Override
     public CheckResult verify(CheckResult checkResult, String url) {
         log.info("Iniciando verificação HTTP (HttpClient) para: {}", url);
-        long startTime = System.currentTimeMillis();
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(10)) // Timeout da requisição
+                    .timeout(Duration.ofSeconds(10))
                     .GET()
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            checkResult.setHttpStatusCode(response.statusCode());
-            checkResult.setFinalUrl(url); // A URL *desta* requisição
+            checkResult.setStatusCode(response.statusCode());
+            checkResult.setFinalUrl(url);
 
-            // É alcançável se recebeu *qualquer* resposta (mesmo 3xx, 4xx, 5xx)
-            checkResult.setReachable(true);
+            checkResult.setAccessible(true);
 
-            // Se for um redirect (3xx), pegamos o 'Location' header
             if (response.statusCode() >= 300 && response.statusCode() < 400) {
-                response.headers().firstValue("Location").ifPresent(checkResult::setFinalUrl);
-                log.info("Redirect detectado para: {}", checkResult.getFinalUrl());
+                response.headers().firstValue("Location").ifPresent(location -> {
+                    checkResult.setFinalUrl(location); 
+                    log.info("Redirect detectado. Location header: {}", location);
+                });
             }
 
         } catch (Exception e) {
-            // Se a mensagem for nula, usamos o e.toString() que dá mais detalhes.
             String errorMsg = e.getMessage() != null ? e.getMessage() : e.toString();
-            log.error("Erro ao verificar (HttpClient) {}: {}", url, errorMsg, e); // Loga a exceção completa
-            checkResult.setReachable(false);
-            checkResult.setErrorMessage("Erro: " + errorMsg); // Usa a nova msg
+            log.error("Erro ao verificar (HttpClient) {}: {}", url, errorMsg, e);
+            checkResult.setAccessible(false);
+            checkResult.setFailureReason("Erro: " + errorMsg);
+            checkResult.setStatusCode(0);
         }
 
-        long endTime = System.currentTimeMillis();
-        checkResult.setResponseTimeMs(endTime - startTime);
-        log.info("Verificação HTTP (HttpClient) para {} concluída em {}ms com status {}", url, checkResult.getResponseTimeMs(), checkResult.getHttpStatusCode());
+        log.info("Verificação HTTP (HttpClient) para {} concluída com status {}", url, checkResult.getStatusCode());
+
 
         return checkResult;
     }

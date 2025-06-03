@@ -5,7 +5,7 @@ import br.cesar.school.linksentinel.model.Link;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Component // Marca como um componente Spring para que possa ser injetado/descoberto
+@Component
 @Slf4j
 public class LoggingObserver implements LinkStatusObserver {
 
@@ -19,30 +19,31 @@ public class LoggingObserver implements LinkStatusObserver {
 
         if (oldResult != null) {
             log.info("║ Status Anterior: HTTP {} | Acessível: {} | Em: {}",
-                    oldResult.getHttpStatusCode(),
-                    Boolean.TRUE.equals(oldResult.getReachable()) ? "SIM" : "NÃO",
+                    oldResult.getStatusCode(), 
+                    oldResult.isAccessible() ? "SIM" : "NÃO", 
                     oldResult.getCheckTimestamp());
         } else {
             log.info("║ Status Anterior: Não há registro anterior significativo ou é a primeira verificação após monitorar.");
         }
 
         log.info("║ Novo Status    : HTTP {} | Acessível: {} | Em: {}",
-                newResult.getHttpStatusCode(),
-                Boolean.TRUE.equals(newResult.getReachable()) ? "SIM" : "NÃO",
+                newResult.getStatusCode(), // )
+                newResult.isAccessible() ? "SIM" : "NÃO",
                 newResult.getCheckTimestamp());
         log.info("║ --------------------------------------------------------------------------- ║");
 
         // Detalhando a mudança
         if (oldResult != null) {
-            if (!oldResult.getReachable().equals(newResult.getReachable())) {
+            // Compara booleanos diretamente
+            if (oldResult.isAccessible() != newResult.isAccessible()) { 
                 log.info("║ MUDANÇA: Acessibilidade mudou de {} para {}",
-                        Boolean.TRUE.equals(oldResult.getReachable()) ? "SIM" : "NÃO",
-                        Boolean.TRUE.equals(newResult.getReachable()) ? "SIM" : "NÃO");
+                        oldResult.isAccessible() ? "SIM" : "NÃO",
+                        newResult.isAccessible() ? "SIM" : "NÃO");
             }
-            if (oldResult.getHttpStatusCode() != null && newResult.getHttpStatusCode() != null &&
-                !oldResult.getHttpStatusCode().equals(newResult.getHttpStatusCode())) {
+            
+            if (oldResult.getStatusCode() != newResult.getStatusCode()) { 
                 log.info("║ MUDANÇA: Status HTTP mudou de {} para {}",
-                        oldResult.getHttpStatusCode(), newResult.getHttpStatusCode());
+                        oldResult.getStatusCode(), newResult.getStatusCode()); 
             }
         } else {
             log.info("║ MUDANÇA: Primeira verificação relevante ou link passou a ser monitorado.");

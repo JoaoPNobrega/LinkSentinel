@@ -29,7 +29,7 @@ public class HistoryService {
 
     // *** NOVO MÉTODO PARA DELETAR UM CHECKRESULT ESPECÍFICO ***
     @Transactional
-    public void deleteCheckResult(UUID checkResultId) {
+    public void deleteCheckResult(Long checkResultId) {
         if (!checkResultRepository.existsById(checkResultId)) {
             throw new EntityNotFoundException("Resultado de verificação não encontrado com ID: " + checkResultId);
         }

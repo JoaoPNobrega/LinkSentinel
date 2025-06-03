@@ -5,7 +5,7 @@ import br.cesar.school.linksentinel.model.Link;
 import br.cesar.school.linksentinel.repository.CheckResultRepository;
 import br.cesar.school.linksentinel.repository.LinkRepository;
 import br.cesar.school.linksentinel.service.observer.LinkStatusObserver;
-import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType; // <-- ADICIONAR ESTA IMPORTAÇÃO
+import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType; // Importação está correta
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,7 +22,6 @@ public class MonitoringService {
     private final LinkRepository linkRepository;
     private final LinkVerificationService linkVerificationService;
     private final CheckResultRepository checkResultRepository;
-
     private final List<LinkStatusObserver> observers;
 
     private static final String MONITORING_USERNAME = "system-monitor";
@@ -38,29 +37,32 @@ public class MonitoringService {
             log.info("Encontrados {} links para monitorar.", monitoredLinks.size());
             for (Link link : monitoredLinks) {
                 log.info("Monitorando link: {}", link.getUrl());
-                CheckResult newResult = null;
+                CheckResult newResultFromVerification = null; // Renomeado para clareza
                 try {
-                    // *** ALTERAÇÃO AQUI: Passando o tipo de estratégia ***
-                    newResult = linkVerificationService.performCheck(
+                    newResultFromVerification = linkVerificationService.performCheck(
                             link.getUrl(),
                             MONITORING_USERNAME,
-                            VerificationStrategyType.REDIRECT_CHECK // Usando a estratégia que verifica redirects
+                            VerificationStrategyType.REDIRECT_CHECK
                     );
-                    log.info("Link {} verificado com sucesso pelo monitor. Status HTTP: {}", link.getUrl(), newResult.getHttpStatusCode());
+                    // Usar o resultado retornado pela verificação que foi salvo no BD
+                    log.info("Link {} verificado com sucesso pelo monitor. Status HTTP: {}", link.getUrl(), newResultFromVerification.getStatusCode()); // CORRIGIDO
 
+                    // Buscamos os dois últimos resultados do banco DEPOIS que o novo resultado da verificação foi salvo.
+                    // O 'newResultFromVerification' já é o mais recente e está no banco.
                     List<CheckResult> lastTwoResults = checkResultRepository.findTop2ByLinkOrderByCheckTimestampDesc(link);
 
                     CheckResult currentResultInDb = null;
-                    CheckResult previousResult = null;
+                    CheckResult previousResultInDb = null;
 
                     if (!lastTwoResults.isEmpty()) {
-                        currentResultInDb = lastTwoResults.get(0);
+                        currentResultInDb = lastTwoResults.get(0); // Este é o newResultFromVerification
                     }
                     if (lastTwoResults.size() > 1) {
-                        previousResult = lastTwoResults.get(1);
+                        previousResultInDb = lastTwoResults.get(1); // Este é o resultado anterior a newResultFromVerification
                     }
-
-                    compareAndNotify(link, previousResult, currentResultInDb);
+                    
+                    // Passar o resultado anterior (previousResultInDb) e o atual (currentResultInDb) para comparação.
+                    compareAndNotify(link, previousResultInDb, currentResultInDb);
 
                 } catch (Exception e) {
                     log.error("Erro ao verificar ou processar link monitorado {}: {}", link.getUrl(), e.getMessage(), e);
@@ -71,28 +73,35 @@ public class MonitoringService {
     }
 
     private void compareAndNotify(Link link, CheckResult oldResult, CheckResult newResult) {
-        if (newResult == null) return;
+        if (newResult == null) { // newResult é o resultado atual da verificação
+            log.warn("Tentativa de comparar com um novo resultado nulo para o link: {}", link.getUrl());
+            return;
+        }
 
         boolean significantChange = false;
-        if (oldResult == null) {
+        if (oldResult == null) { // Não há resultado anterior no banco para comparar
             significantChange = true;
-            log.info("Primeira verificação monitorada para {}. Status atual: HTTP {}, Acessível: {}",
-                    link.getUrl(), newResult.getHttpStatusCode(), newResult.getReachable());
+            log.info("Primeira verificação monitorada (ou sem histórico comparável) para {}. Status atual: HTTP {}, Acessível: {}",
+                    link.getUrl(), newResult.getStatusCode(), newResult.isAccessible()); // CORRIGIDO
         } else {
-            if (!Objects.equals(oldResult.getReachable(), newResult.getReachable())) {
+            // Compara acessibilidade
+            if (oldResult.isAccessible() != newResult.isAccessible()) { // CORRIGIDO
                 significantChange = true;
                 log.info("Mudança na acessibilidade detectada para {}: de {} para {}",
-                        link.getUrl(), oldResult.getReachable(), newResult.getReachable());
+                        link.getUrl(), oldResult.isAccessible(), newResult.isAccessible()); // CORRIGIDO
             }
-            if (!Objects.equals(oldResult.getHttpStatusCode(), newResult.getHttpStatusCode())) {
+            // Compara status code
+            if (oldResult.getStatusCode() != newResult.getStatusCode()) { // CORRIGIDO
                 significantChange = true;
                 log.info("Mudança no status HTTP detectada para {}: de {} para {}",
-                        link.getUrl(), oldResult.getHttpStatusCode(), newResult.getHttpStatusCode());
+                        link.getUrl(), oldResult.getStatusCode(), newResult.getStatusCode()); // CORRIGIDO
             }
         }
 
         if (significantChange) {
-            notifyObservers(link, oldResult, newResult);
+            notifyObservers(link, oldResult, newResult); // oldResult pode ser null aqui
+        } else {
+            log.info("Nenhuma mudança significativa detectada para o link {}", link.getUrl());
         }
     }
 

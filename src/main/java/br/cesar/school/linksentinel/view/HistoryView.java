@@ -13,7 +13,7 @@ import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Paragraph; // Adicionado para a mensagem de "nenhum histórico"
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -21,7 +21,6 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-// import com.vaadin.flow.data.renderer.ComponentRenderer; // Não está sendo usado, pode remover
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
@@ -42,7 +41,7 @@ public class HistoryView extends VerticalLayout {
 
     private Grid<CheckResult> grid = new Grid<>(CheckResult.class, false);
     private UserDetails currentUserDetails;
-    private Paragraph noHistoryMessage; // Para mostrar quando o grid está vazio
+    private Paragraph noHistoryMessage;
 
     public HistoryView(HistoryService historyService, SecurityService securityService, LinkService linkService) {
         this.historyService = historyService;
@@ -67,10 +66,10 @@ public class HistoryView extends VerticalLayout {
         headerLayout.setAlignItems(Alignment.BASELINE);
 
         noHistoryMessage = new Paragraph("Nenhum histórico de verificação encontrado.");
-        noHistoryMessage.setVisible(false); // Começa invisível
+        noHistoryMessage.setVisible(false);
 
         configureGrid();
-        add(headerLayout, grid, noHistoryMessage); // Adiciona a mensagem aqui
+        add(headerLayout, grid, noHistoryMessage);
         updateList();
     }
 
@@ -84,9 +83,9 @@ public class HistoryView extends VerticalLayout {
                 .setHeader("Data/Hora").setSortable(true).setFlexGrow(0).setWidth("150px");
         grid.addColumn(result -> result.getLink().getUrl())
                 .setHeader("URL Original").setSortable(true).setFlexGrow(2);
-        grid.addColumn(CheckResult::getHttpStatusCode)
+        grid.addColumn(CheckResult::getStatusCode) // CORRIGIDO
                 .setHeader("Status").setSortable(true).setFlexGrow(0).setWidth("100px");
-        grid.addColumn(result -> Boolean.TRUE.equals(result.getReachable()) ? "Sim" : "Não")
+        grid.addColumn(result -> result.isAccessible() ? "Sim" : "Não") // CORRIGIDO
                 .setHeader("Acessível?").setSortable(true).setFlexGrow(0).setWidth("120px");
         grid.addColumn(CheckResult::getFinalUrl)
                 .setHeader("URL Final").setSortable(true).setFlexGrow(1);
@@ -97,14 +96,14 @@ public class HistoryView extends VerticalLayout {
             monitoredCheckbox.addValueChangeListener(event -> {
                 try {
                     linkService.toggleLinkMonitoring(link.getId());
-                    link.setMonitored(event.getValue());
+                    link.setMonitored(event.getValue()); // Optimistic update
                     Notification.show("Monitoramento de '" + সংক্ষিপ্তUrl(link.getUrl()) + "' alterado.",
                             2000, Notification.Position.BOTTOM_START)
                             .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 } catch (Exception e) {
                     Notification.show("Erro: " + e.getMessage(), 3000, Notification.Position.BOTTOM_START)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    monitoredCheckbox.setValue(link.isMonitored());
+                    monitoredCheckbox.setValue(link.isMonitored()); // Revert on error
                 }
             });
             return monitoredCheckbox;
@@ -133,15 +132,14 @@ public class HistoryView extends VerticalLayout {
                 checkResult.getLink().getUrl() + " de " +
                 checkResult.getCheckTimestamp().format(DateTimeFormatter.ofPattern("dd/MM/yy HH:mm")) + "?");
         
-        // Correção aqui:
-        dialog.setConfirmText("Excluir"); // Em vez de setConfirmButtonText
+        dialog.setConfirmText("Excluir");
         dialog.setConfirmButtonTheme("error primary");
-        dialog.setCancelText("Cancelar"); // Em vez de setCancelButtonText
-        dialog.setCancelable(true); // Permite fechar clicando fora ou ESC
+        dialog.setCancelText("Cancelar");
+        dialog.setCancelable(true);
 
         dialog.addConfirmListener(event -> {
             try {
-                historyService.deleteCheckResult(checkResult.getId());
+                historyService.deleteCheckResult(checkResult.getId()); 
                 Notification.show("Registro excluído.", 2000, Notification.Position.BOTTOM_START)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 updateList();
@@ -160,11 +158,10 @@ public class HistoryView extends VerticalLayout {
         dialog.setHeader("Limpar Todo o Histórico?");
         dialog.setText("Tem certeza que deseja excluir TODOS os seus registros de verificação? Esta ação não pode ser desfeita.");
 
-        // Correção aqui:
-        dialog.setConfirmText("Sim, Excluir Tudo"); // Em vez de setConfirmButtonText
+        dialog.setConfirmText("Sim, Excluir Tudo");
         dialog.setConfirmButtonTheme("error primary");
-        dialog.setCancelText("Cancelar"); // Em vez de setCancelButtonText
-        dialog.setCancelable(true); // Permite fechar clicando fora ou ESC
+        dialog.setCancelText("Cancelar");
+        dialog.setCancelable(true);
 
         dialog.addConfirmListener(event -> {
             try {
@@ -187,9 +184,9 @@ public class HistoryView extends VerticalLayout {
             
             boolean hasResults = !results.isEmpty();
             grid.setVisible(hasResults);
-            noHistoryMessage.setVisible(!hasResults); // Mostra ou esconde a mensagem
+            noHistoryMessage.setVisible(!hasResults);
         } else {
-            grid.setItems(List.of()); // Limpa o grid se não houver usuário
+            grid.setItems(List.of());
             grid.setVisible(false);
             noHistoryMessage.setVisible(true);
         }

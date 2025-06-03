@@ -1,6 +1,8 @@
 package br.cesar.school.linksentinel.service.verifier;
 
 import br.cesar.school.linksentinel.model.CheckResult;
+import br.cesar.school.linksentinel.model.Link;
+import br.cesar.school.linksentinel.model.User;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -9,7 +11,7 @@ import java.util.List;
 @Slf4j
 public class RedirectVerifierDecorator extends AbstractVerifierDecorator {
 
-    private static final int MAX_REDIRECTS = 10; // Evita loops infinitos
+    private static final int MAX_REDIRECTS = 10;
 
     public RedirectVerifierDecorator(LinkVerifier wrappedVerifier) {
         super(wrappedVerifier);
@@ -19,43 +21,58 @@ public class RedirectVerifierDecorator extends AbstractVerifierDecorator {
     public CheckResult verify(CheckResult checkResult, String url) {
         log.info("Iniciando verificação COM redirects para: {}", url);
 
-        List<String> redirectChain = new ArrayList<>();
+        List<String> redirectChainList = new ArrayList<>();
         String currentUrl = url;
-        CheckResult currentResult = checkResult;
+        CheckResult lastIterationResult = null;
         int redirectCount = 0;
 
         while (redirectCount < MAX_REDIRECTS) {
-            // Executa a verificação base na URL atual
-            currentResult = super.verify(new CheckResult(checkResult.getLink(), checkResult.getUser()), currentUrl); // Usa um novo CheckResult temporário
 
-            int statusCode = currentResult.getHttpStatusCode() != null ? currentResult.getHttpStatusCode() : 0;
-            redirectChain.add(currentUrl + " (" + statusCode + ")");
+            CheckResult tempResult = CheckResult.builder()
+                                        .link(checkResult.getLink())
+                                        .user(checkResult.getUser()) 
+                                        .build();
+            
+            tempResult = super.verify(tempResult, currentUrl);
 
-            // Verifica se é um redirect (3xx) e se temos para onde ir
-            if (statusCode >= 300 && statusCode < 400 && currentResult.getFinalUrl() != null && !currentResult.getFinalUrl().equals(currentUrl)) {
-                log.debug("Redirect de {} para {}", currentUrl, currentResult.getFinalUrl());
-                currentUrl = currentResult.getFinalUrl(); // A próxima URL a ser verificada
+            lastIterationResult = tempResult;
+            int statusCode = tempResult.getStatusCode(); 
+            redirectChainList.add(currentUrl + " (" + statusCode + ")");
+
+            if (statusCode >= 300 && statusCode < 400 && tempResult.getFinalUrl() != null && !tempResult.getFinalUrl().equals(currentUrl)) {
+                log.debug("Redirect de {} para {}", currentUrl, tempResult.getFinalUrl());
+                currentUrl = tempResult.getFinalUrl();
                 redirectCount++;
             } else {
-                // Não é redirect ou não tem Location, paramos aqui.
+
                 break;
             }
         }
 
-        if (redirectCount >= MAX_REDIRECTS) {
-            log.warn("Máximo de redirects ({}) atingido para {}", MAX_REDIRECTS, url);
-            currentResult.setErrorMessage((currentResult.getErrorMessage() == null ? "" : currentResult.getErrorMessage() + "; ") + "Máximo de redirects atingido.");
+        if (lastIterationResult == null) {
+
+            log.error("lastIterationResult é nulo após o loop de redirecionamento para URL: {}. O checkResult original não será totalmente atualizado.", url);
+            checkResult.setAccessible(false);
+            checkResult.setFailureReason(checkResult.getFailureReason() == null ? "Falha no processo de redirecionamento" : checkResult.getFailureReason() + "; Falha no processo de redirecionamento");
+            checkResult.setFinalUrl(currentUrl);
+        } else {
+            checkResult.setStatusCode(lastIterationResult.getStatusCode());
+            checkResult.setAccessible(lastIterationResult.isAccessible()); 
+            checkResult.setFinalUrl(currentUrl);
+
+            checkResult.setFailureReason(lastIterationResult.getFailureReason());
+
         }
 
-        // Atualiza o CheckResult original com os dados finais
-        checkResult.setHttpStatusCode(currentResult.getHttpStatusCode());
-        checkResult.setReachable(currentResult.getReachable());
-        checkResult.setResponseTimeMs(currentResult.getResponseTimeMs()); // Pode ser melhor somar os tempos...
-        checkResult.setErrorMessage(currentResult.getErrorMessage());
-        checkResult.setFinalUrl(currentUrl);
-        checkResult.setRedirectChain(String.join(" -> ", redirectChain)); // Guarda a cadeia
 
-        log.info("Verificação COM redirects para {} concluída. URL Final: {}", url, currentUrl);
+        if (redirectCount >= MAX_REDIRECTS) {
+            log.warn("Máximo de redirects ({}) atingido para {}", MAX_REDIRECTS, url);
+            String existingFailureReason = checkResult.getFailureReason();
+            String redirectError = "Máximo de redirects atingido.";
+            checkResult.setFailureReason(existingFailureReason == null || existingFailureReason.isEmpty() ? redirectError : existingFailureReason + "; " + redirectError);
+        }
+        
+        log.info("Verificação COM redirects para {} concluída. URL Final: {}", url, checkResult.getFinalUrl());
         return checkResult;
     }
 }

@@ -5,14 +5,13 @@ import br.cesar.school.linksentinel.model.CheckResult;
 import br.cesar.school.linksentinel.service.LinkVerificationService;
 import br.cesar.school.linksentinel.service.SecurityService;
 import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType;
-import com.vaadin.flow.component.Component; // <-- IMPORTAÇÃO ADICIONADA
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Key;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3; // <-- IMPORTAÇÃO ADICIONADA
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -81,16 +80,16 @@ public class LinkCheckerView extends VerticalLayout {
         resultContainer.setWidthFull();
         resultContainer.setPadding(false);
         resultContainer.getStyle().set("margin-top", LumoUtility.Margin.Top.LARGE);
-        resultContainer.addClassName("result-card-style");
+        resultContainer.addClassName("result-card-style"); 
 
         Div resultCard = new Div(resultContainer);
         resultCard.setWidthFull();
         resultCard.getStyle()
-            .set("background-color", "var(--lumo-base-color)")
-            .set("border-radius", "var(--lumo-border-radius-l)")
-            .set("padding", LumoUtility.Padding.LARGE)
-            .set("box-shadow", "var(--lumo-box-shadow-s)");
-        resultCard.setVisible(false);
+                .set("background-color", "var(--lumo-base-color)")
+                .set("border-radius", "var(--lumo-border-radius-l)")
+                .set("padding", LumoUtility.Padding.LARGE)
+                .set("box-shadow", "var(--lumo-box-shadow-s)");
+        resultCard.setVisible(false); 
 
         contentWrapper.add(title, inputFieldLayout, resultCard);
         add(contentWrapper);
@@ -106,7 +105,7 @@ public class LinkCheckerView extends VerticalLayout {
 
         if (!url.matches("^(?i)(https?|ftp)://.*")) {
             url = "http://" + url;
-            urlField.setValue(url);
+            urlField.setValue(url); 
         }
 
         UserDetails currentUser = securityService.getAuthenticatedUser();
@@ -117,7 +116,7 @@ public class LinkCheckerView extends VerticalLayout {
         }
 
         resultContainer.removeAll();
-        resultContainer.getParent().ifPresent(parent -> ((Div)parent).setVisible(true));
+        resultContainer.getParent().ifPresent(parent -> ((Div)parent).setVisible(true)); 
         resultContainer.add(new Paragraph("Verificando... Por favor, aguarde."));
         checkButton.setEnabled(false);
 
@@ -125,7 +124,7 @@ public class LinkCheckerView extends VerticalLayout {
             CheckResult result = verificationService.performCheck(
                     url,
                     currentUser.getUsername(),
-                    VerificationStrategyType.REDIRECT_CHECK
+                    VerificationStrategyType.REDIRECT_CHECK 
             );
             displayResults(result);
         } catch (Exception e) {
@@ -149,60 +148,33 @@ public class LinkCheckerView extends VerticalLayout {
 
         addResultRow("URL Original:", result.getLink().getUrl());
         addResultRow("Verificado em:", result.getCheckTimestamp().format(formatter));
-        addResultRow("Verificado por:", result.getUser().getUsername());
+        
+        if (result.getUser() != null) {
+            addResultRow("Verificado por:", result.getUser().getUsername());
+        } else {
+            addResultRow("Verificado por:", "N/A (usuário não associado)");
+        }
+
 
         Span statusSpan = new Span();
-        if (Boolean.TRUE.equals(result.getReachable())) {
-            statusSpan.setText("Acessível (HTTP " + (result.getHttpStatusCode() != null ? result.getHttpStatusCode() : "N/A") + ")");
+
+        if (result.isAccessible()) {
+            statusSpan.setText("Acessível (HTTP " + result.getStatusCode() + ")");
             statusSpan.getElement().getThemeList().set("badge success pill", true);
         } else {
-            statusSpan.setText("Inacessível");
+            statusSpan.setText("Inacessível (HTTP " + result.getStatusCode() + ")");
+
             statusSpan.getElement().getThemeList().set("badge error pill", true);
         }
         addResultRow("Status:", statusSpan);
 
-        addResultRow("Tempo de Resposta:", (result.getResponseTimeMs() != null ? result.getResponseTimeMs() : "N/A") + " ms");
 
         if (result.getFinalUrl() != null && !result.getFinalUrl().equals(result.getLink().getUrl())) {
             addResultRow("URL Final (após redirects):", result.getFinalUrl());
         }
 
-        if (result.getRedirectChain() != null && !result.getRedirectChain().isEmpty()) {
-            addResultRow("Cadeia de Redirects:", result.getRedirectChain());
-        }
-
-        if (result.getSafeBrowseOk() != null) {
-            Span sbStatusSpan = new Span(); // Correção: Declarar e instanciar aqui
-            if (Boolean.TRUE.equals(result.getSafeBrowseOk())) {
-                sbStatusSpan.setText("OK (Seguro)");
-                sbStatusSpan.getElement().getThemeList().set("badge success pill", true);
-            } else {
-                sbStatusSpan.setText("AMEAÇA DETECTADA!");
-                sbStatusSpan.getElement().getThemeList().set("badge error pill", true);
-                if (result.getSafeBrowseThreats() != null && !result.getSafeBrowseThreats().isEmpty()) {
-                    addResultRow("Tipos de Ameaça (Safe Browse):", result.getSafeBrowseThreats());
-                }
-            }
-            addResultRow("Verificação Safe Browse:", sbStatusSpan);
-        }
-
-        if (result.getGeminiAnalysisResult() != null && !result.getGeminiAnalysisResult().isEmpty() &&
-            !result.getGeminiAnalysisResult().startsWith("Serviço Gemini não disponível") &&
-            !result.getGeminiAnalysisResult().startsWith("Erro ao obter análise do Gemini")) {
-            
-            VerticalLayout geminiLayout = new VerticalLayout();
-            geminiLayout.setPadding(false);
-            geminiLayout.setSpacing(false);
-            H3 geminiTitle = new H3("Análise com IA (Gemini)"); // H3 estava causando erro antes por falta de import
-            geminiTitle.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.Margin.Top.LARGE, LumoUtility.Margin.Bottom.XSMALL);
-            Paragraph geminiParagraph = new Paragraph(result.getGeminiAnalysisResult());
-            geminiParagraph.getStyle().set("white-space", "pre-wrap");
-            geminiLayout.add(geminiTitle, geminiParagraph);
-            resultContainer.add(geminiLayout);
-        }
-
-        if (result.getErrorMessage() != null) {
-            Span errorSpan = new Span("Erro na Verificação: " + result.getErrorMessage());
+        if (result.getFailureReason() != null && !result.getFailureReason().isBlank()) {
+            Span errorSpan = new Span("Detalhe da Falha: " + result.getFailureReason());
             errorSpan.getElement().getThemeList().set("badge error pill", true);
             addResultRow("Falha:", errorSpan);
         }
@@ -214,15 +186,15 @@ public class LinkCheckerView extends VerticalLayout {
         row.setWidthFull();
         Span labelSpan = new Span(label);
         labelSpan.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontWeight.SEMIBOLD);
-        labelSpan.getStyle().set("margin-right", LumoUtility.Margin.Right.SMALL); // Espaço entre label e valor
+        labelSpan.getStyle().set("margin-right", LumoUtility.Margin.Right.SMALL);
         Span valueSpan = new Span(value);
-        valueSpan.getStyle().set("word-break", "break-all");
+        valueSpan.getStyle().set("word-break", "break-all"); 
         row.add(labelSpan, valueSpan);
-        row.setFlexGrow(1, valueSpan);
+        row.setFlexGrow(1, valueSpan); 
         resultContainer.add(row);
     }
 
-    private void addResultRow(String label, Component valueComponent) { // Component importado
+    private void addResultRow(String label, Component valueComponent) {
         HorizontalLayout row = new HorizontalLayout();
         row.setWidthFull();
         Span labelSpan = new Span(label);
@@ -230,7 +202,7 @@ public class LinkCheckerView extends VerticalLayout {
         labelSpan.getStyle().set("margin-right", LumoUtility.Margin.Right.SMALL);
         row.add(labelSpan, valueComponent);
         row.setFlexGrow(1, valueComponent);
-        row.setAlignItems(Alignment.BASELINE); // Alinha o label com o componente
+        row.setAlignItems(Alignment.BASELINE);
         resultContainer.add(row);
     }
 }

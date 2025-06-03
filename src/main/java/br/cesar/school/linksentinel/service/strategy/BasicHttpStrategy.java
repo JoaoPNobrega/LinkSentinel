@@ -5,7 +5,7 @@ import br.cesar.school.linksentinel.service.verifier.BaseHttpVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@Component("basicHttpStrategy") // Nome do bean para injeção
+@Component("basicHttpStrategy") 
 @RequiredArgsConstructor
 public class BasicHttpStrategy implements VerificationStrategy {
 
@@ -13,7 +13,12 @@ public class BasicHttpStrategy implements VerificationStrategy {
 
     @Override
     public CheckResult execute(CheckResult checkResult, String url) {
-        // Esta estratégia usa apenas a verificação HTTP base
-        return baseHttpVerifier.verify(checkResult, url);
+
+        return baseHttpVerifier.verify(checkResult, url); 
+    }
+
+    @Override
+    public VerificationStrategyType getType() { 
+        return VerificationStrategyType.BASIC_HTTP;
     }
 }
