@@ -1,4 +1,3 @@
-// Local: src/main/java/br/cesar/school/linksentinel/config/SecurityConfig.java
 package br.cesar.school.linksentinel.config;
 
 import br.cesar.school.linksentinel.model.User;
@@ -49,14 +48,11 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // Permite acesso público ao H2 console e à API de registro
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/api/auth/register")).permitAll()
-                // Rotas Vaadin @AnonymousAllowed (/, /login, /register) são permitidas
         );
 
-        // Ignora CSRF para API e H2. Vaadin lida com CSRF para suas views.
         http.csrf(csrf -> csrf
                 .ignoringRequestMatchers(
                         new AntPathRequestMatcher("/api/auth/register"),
@@ -64,12 +60,8 @@ public class SecurityConfig extends VaadinWebSecurity {
                 )
         );
         
-        // Chama a configuração base do VaadinWebSecurity.
-        // Isso configura o formLogin e o logout (padrão: /logout METHOD_GET e redireciona para loginPage).
-        super.configure(http); 
+        super.configure(http);
 
-        // Define a LoginView e o destino padrão após login bem-sucedido.
-        // O VaadinWebSecurity usará a rota "/" (WelcomeView) ou "/login" como destino após o logout.
-        setLoginView(http, LoginView.class, "/dashboard"); 
+        setLoginView(http, LoginView.class, "/login");
     }
 }

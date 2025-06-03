@@ -1,4 +1,3 @@
-// Local: src/main/java/br/cesar/school/linksentinel/view/MainLayout.java
 package br.cesar.school.linksentinel.view;
 
 import br.cesar.school.linksentinel.service.SecurityService;
@@ -45,8 +44,10 @@ public class MainLayout extends AppLayout {
             );
         }
 
-        // *** MUDANÇA AQUI: Usando Anchor para o Logout ***
-        Anchor logoutLink = new Anchor("logout", "Sair"); // O href é "logout"
+        // *** MUDANÇA AQUI: Usando Anchor para o Logout e redirecionando para /login ***
+        Anchor logoutLink = new Anchor("/login", "Sair"); // Alterado o href para "/login"
+        logoutLink.getElement().setAttribute("router-ignore", ""); // Adicionado para que o Vaadin não tente rotear internamente
+
         Icon logoutIcon = VaadinIcon.SIGN_OUT.create();
         logoutIcon.getStyle().set("margin-right", LumoUtility.Margin.Right.XSMALL);
         logoutLink.getElement().insertChild(0, logoutIcon.getElement()); // Adiciona ícone antes do texto "Sair"

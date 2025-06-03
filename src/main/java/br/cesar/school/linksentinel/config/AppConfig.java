@@ -67,9 +67,4 @@ public class AppConfig {
         verifier = new RedirectVerifierDecorator(verifier);
         return verifier;
     }
-
-    @Bean
-    public LinkStatusObserver loggingObserver() {
-        return new LoggingObserver();
-    }
 }
