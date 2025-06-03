@@ -6,107 +6,198 @@ import br.cesar.school.linksentinel.model.User;
 import br.cesar.school.linksentinel.repository.CheckResultRepository;
 import br.cesar.school.linksentinel.repository.LinkRepository;
 import br.cesar.school.linksentinel.repository.UserRepository;
-import br.cesar.school.linksentinel.service.strategy.VerificationStrategy; // Importa a Interface Strategy
-import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType; // Importa o Enum
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
+import br.cesar.school.linksentinel.service.strategy.VerificationStrategy;
+import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType;
+import br.cesar.school.linksentinel.service.verifier.LinkVerifier;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.time.LocalDateTime;
-import java.util.List; // Mudado de Map para List para consistência com a sugestão original de preenchimento do Map
-import java.util.Map;
-import java.util.function.Function; // Para Collectors.toMap
-import java.util.stream.Collectors; // Para Collectors.toMap
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
-@Slf4j
 public class LinkVerificationService {
 
-    private final LinkRepository linkRepository;
+    private static final Logger logger = Logger.getLogger(LinkVerificationService.class.getName());
+
+    private final List<VerificationStrategy> strategies;
     private final CheckResultRepository checkResultRepository;
+    private final LinkVerifier configuredVerifier;
+    private final LinkRepository linkRepository;
     private final UserRepository userRepository;
-    private final Map<VerificationStrategyType, VerificationStrategy> strategies; // Mapa de todas as estratégias (Tipo Enum como chave)
+
+    @Value("${link.verification.max-retries:2}")
+    private int maxRetries;
+
+    @Value("${link.verification.retry-interval-ms:5000}")
+    private long retryIntervalMs;
 
     @Autowired
-    public LinkVerificationService(LinkRepository linkRepository,
+    public LinkVerificationService(List<VerificationStrategy> strategies,
                                    CheckResultRepository checkResultRepository,
-                                   UserRepository userRepository,
-                                   List<VerificationStrategy> strategyList) { // Injeta uma Lista de todas as beans de estratégia
-        this.linkRepository = linkRepository;
+                                   LinkVerifier configuredVerifier,
+                                   LinkRepository linkRepository,
+                                   UserRepository userRepository) {
+        this.strategies = strategies;
         this.checkResultRepository = checkResultRepository;
+        this.configuredVerifier = configuredVerifier;
+        this.linkRepository = linkRepository;
         this.userRepository = userRepository;
-        // Preenche o mapa usando o VerificationStrategyType enum como chave
-        this.strategies = strategyList.stream()
-                .collect(Collectors.toMap(VerificationStrategy::getType, Function.identity()));
     }
 
     @Transactional
     public CheckResult performCheck(String url, String username, VerificationStrategyType strategyType) {
-        log.info("Iniciando verificação para {} por {} usando estratégia {}", url, username, strategyType);
-
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
 
-        String trimmedUrl = url.trim();
-        Link link = linkRepository.findByUrl(trimmedUrl)
+        Link link = linkRepository.findByUrl(url)
                 .orElseGet(() -> {
-                    log.info("Link {} não encontrado, criando novo.", trimmedUrl);
-                    // Se Link tem um construtor que aceita URL e User, ou se você quer associar o criador aqui.
-                    // Se não, apenas new Link(trimmedUrl) é suficiente e a associação com User pode ser feita de outra forma se necessário.
-                    Link newLink = new Link(trimmedUrl); 
-                    // newLink.setCreatedBy(user); // Exemplo, se Link tiver essa associação
+                    Link newLink = new Link(url);
+                    newLink.setId(UUID.randomUUID());
                     return linkRepository.save(newLink);
                 });
-        
-        // Assumindo que Link.java tem setLastChecked
-        link.setLastChecked(LocalDateTime.now()); 
 
-        // CORREÇÃO: Usar o builder para criar CheckResult.
-        // Isso requer que CheckResult.java tenha um campo 'private User user;' e que o Lombok @Builder esteja presente.
+        CheckResult initialCheckResult = CheckResult.builder()
+                .link(link)
+                .user(user)
+                .originalUrl(url)
+                .build();
+        
+        CheckResult finalResult = executeVerificationWithRetries(initialCheckResult, url);
+        finalResult.setLink(link);
+        finalResult.setUser(user);
+        return checkResultRepository.save(finalResult);
+    }
+    
+    @Transactional
+    public CheckResult verifyLink(Link link) {
+        if (link == null || link.getUrl() == null || link.getUrl().trim().isEmpty()) {
+            throw new IllegalArgumentException("Link ou URL do link não pode ser nulo/vazio para verificação.");
+        }
+        
         CheckResult initialCheckResult = CheckResult.builder()
                                             .link(link)
-                                            .user(user) // Certifique-se que CheckResult tem este campo e está no builder
-                                            .checkTimestamp(LocalDateTime.now()) // Boa prática inicializar aqui
+                                            .user(link.getCheckResults() != null && !link.getCheckResults().isEmpty() && link.getCheckResults().get(0) != null ? 
+                                                  link.getCheckResults().get(0).getUser() : null) // Tenta obter o usuário do último check, se houver.
+                                                                                                // Ajuste esta lógica se o Link tiver uma associação direta com User.
+                                            .originalUrl(link.getUrl())
                                             .build();
 
-        // *** USA O PADRÃO STRATEGY AQUI ***
-        // CORREÇÃO: Obter estratégia usando o Enum diretamente como chave
-        VerificationStrategy strategy = strategies.get(strategyType); 
-        if (strategy == null) {
-            log.error("Estratégia de verificação não encontrada para o tipo: {}", strategyType);
-            // Considerar lançar uma exceção mais específica ou ter uma estratégia padrão.
-            throw new IllegalArgumentException("Tipo de estratégia de verificação inválido: " + strategyType);
-        }
-
-        // Assumindo que a assinatura de strategy.execute é (CheckResult partialResult, String url)
-        // e que ela MODIFICA o partialResult ou retorna um NOVO CheckResult com os dados da verificação.
-        // Se strategy.execute popula o initialCheckResult diretamente:
-        strategy.execute(initialCheckResult, trimmedUrl); 
-        CheckResult finalResult = initialCheckResult; // Se execute modifica o objeto passado
+        CheckResult finalResult = executeVerificationWithRetries(initialCheckResult, link.getUrl());
+        finalResult.setLink(link); 
         
-        // Se strategy.execute retorna um novo objeto (menos comum se já passamos um):
-        // CheckResult finalResultFromStrategy = strategy.execute(initialCheckResult, trimmedUrl);
-
-        // Salva o resultado final da verificação.
-        // Certifique-se que todos os campos obrigatórios de CheckResult estão preenchidos pela estratégia
-        // (ex: statusCode, accessible).
-        CheckResult savedResult = checkResultRepository.save(finalResult);
-        log.info("Verificação (estratégia {}) para {} salva com ID {}", strategyType, trimmedUrl, savedResult.getId());
-
-        // Assumindo que Link.java tem addCheckResult para manter a relação bidirecional
-        if (link.getCheckResults() != null) { // Evitar NullPointerException se a lista não for inicializada
-            link.addCheckResult(savedResult);
+        if (link.getLastChecked() == null || finalResult.getCheckTimestamp().isAfter(link.getLastChecked())) {
+            link.setLastChecked(finalResult.getCheckTimestamp());
         }
         linkRepository.save(link);
-
-        return savedResult;
+        return checkResultRepository.save(finalResult);
     }
 
-    @Transactional
-    public CheckResult performCheck(String url, String username) {
-        // Usa REDIRECT_CHECK como padrão se nenhum strategyType for especificado.
-        return performCheck(url, username, VerificationStrategyType.REDIRECT_CHECK); 
+    private CheckResult executeVerificationWithRetries(CheckResult initialCheckResultSeed, String urlToVerify) {
+        CheckResult currentAttemptResult = null;
+        int attempts = 0;
+        boolean verificationSuccessAchieved = false;
+
+        while (attempts <= maxRetries && !verificationSuccessAchieved) {
+            attempts++;
+            CheckResult attemptSeed = CheckResult.builder()
+                .link(initialCheckResultSeed.getLink())
+                .user(initialCheckResultSeed.getUser())
+                .originalUrl(urlToVerify)
+                .checkTimestamp(LocalDateTime.now())
+                .build();
+
+            logger.log(Level.INFO, "Attempt {0} to verify URL: {1}", new Object[]{attempts, urlToVerify});
+            
+            try {
+                currentAttemptResult = configuredVerifier.verify(attemptSeed, urlToVerify);
+
+                for (VerificationStrategy strategy : strategies) {
+                    strategy.execute(currentAttemptResult, urlToVerify);
+                }
+                
+                if (currentAttemptResult.getStatusCode() != 0 && currentAttemptResult.getStatusCode() < 500 && currentAttemptResult.isAccessible()) {
+                    verificationSuccessAchieved = true;
+                } else if (currentAttemptResult.getStatusCode() >= 500 || !currentAttemptResult.isAccessible()) {
+                    logger.log(Level.WARNING, "Verification attempt {0}/{1} for URL {2} failed with status: {3} or inaccessible. Retrying...",
+                            new Object[]{attempts, maxRetries + 1, urlToVerify, currentAttemptResult.getStatusCode()});
+                }
+
+            } catch (SocketTimeoutException e) {
+                logger.log(Level.WARNING, "Attempt {0}/{1} for URL {2} timed out: {3}",
+                        new Object[]{attempts, maxRetries + 1, urlToVerify, e.getMessage()});
+                currentAttemptResult = attemptSeed;
+                currentAttemptResult.setStatus("TIMEOUT");
+                currentAttemptResult.setStatusCode(0);
+                currentAttemptResult.setAccessible(false);
+                currentAttemptResult.setFailureReason("Connection timed out: " + e.getMessage());
+                currentAttemptResult.setFinalUrl(urlToVerify);
+
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Attempt {0}/{1} for URL {2} failed with IOException: {3}",
+                        new Object[]{attempts, maxRetries + 1, urlToVerify, e.getMessage()});
+                currentAttemptResult = attemptSeed;
+                currentAttemptResult.setStatus("IO_ERROR");
+                currentAttemptResult.setStatusCode(0);
+                currentAttemptResult.setAccessible(false);
+                currentAttemptResult.setFailureReason("IOException: " + e.getMessage());
+                currentAttemptResult.setFinalUrl(urlToVerify);
+            }  catch (Exception e) {
+                 logger.log(Level.SEVERE, "Attempt {0}/{1} for URL {2} failed with unexpected Exception: {3}",
+                        new Object[]{attempts, maxRetries + 1, urlToVerify, e.getMessage(), e});
+                currentAttemptResult = attemptSeed;
+                currentAttemptResult.setStatus("UNEXPECTED_ERROR");
+                currentAttemptResult.setStatusCode(0);
+                currentAttemptResult.setAccessible(false);
+                currentAttemptResult.setFailureReason("Unexpected error: " + e.getMessage());
+                currentAttemptResult.setFinalUrl(urlToVerify);
+            }
+
+
+            if (!verificationSuccessAchieved && attempts <= maxRetries) {
+                try {
+                    logger.log(Level.INFO, "Retrying URL {0} in {1}ms...", new Object[]{urlToVerify, retryIntervalMs});
+                    Thread.sleep(retryIntervalMs);
+                } catch (InterruptedException ie) {
+                    logger.log(Level.SEVERE, "Retry attempt interrupted for URL: {0}", urlToVerify);
+                    Thread.currentThread().interrupt();
+                    if (currentAttemptResult == null) currentAttemptResult = attemptSeed;
+                    currentAttemptResult.setStatus("INTERRUPTED_RETRY");
+                    currentAttemptResult.setFailureReason( (currentAttemptResult.getFailureReason() == null ? "" : currentAttemptResult.getFailureReason() ) + " - Retry process interrupted.");
+                    break; 
+                }
+            }
+        }
+
+        if (currentAttemptResult == null) {
+            logger.log(Level.SEVERE, "Result is null after all attempts for URL: {0}. Creating default error result.", urlToVerify);
+            currentAttemptResult = initialCheckResultSeed; // Fallback
+            currentAttemptResult.setCheckTimestamp(LocalDateTime.now());
+            currentAttemptResult.setStatus("UNKNOWN_ERROR_NO_RESULT");
+            currentAttemptResult.setStatusCode(0);
+            currentAttemptResult.setAccessible(false);
+            currentAttemptResult.setFailureReason("Verification failed and no result was generated after " + attempts + " attempts.");
+            currentAttemptResult.setFinalUrl(urlToVerify);
+        }
+        
+        if (currentAttemptResult.getCheckTimestamp() == null) {
+            currentAttemptResult.setCheckTimestamp(LocalDateTime.now());
+        }
+         if (initialCheckResultSeed.getLink() != null && currentAttemptResult.getLink() == null) {
+            currentAttemptResult.setLink(initialCheckResultSeed.getLink());
+        }
+        if (initialCheckResultSeed.getUser() != null && currentAttemptResult.getUser() == null) {
+            currentAttemptResult.setUser(initialCheckResultSeed.getUser());
+        }
+
+        return currentAttemptResult;
     }
 }

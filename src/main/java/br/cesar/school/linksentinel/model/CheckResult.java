@@ -1,8 +1,6 @@
 package br.cesar.school.linksentinel.model;
 
 import java.time.LocalDateTime;
-// import java.util.List; // Removido se não for mais necessário
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -51,4 +49,7 @@ public class CheckResult {
     @JoinColumn(name = "user_id")
     private User user;
 
+    private String originalUrl;
+
+    private String status;
 }

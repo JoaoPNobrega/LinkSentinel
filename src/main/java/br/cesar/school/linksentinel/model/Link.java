@@ -35,10 +35,8 @@ public class Link {
     @Column(nullable = false)
     private LocalDateTime lastChecked;
 
-    // *** NOVO CAMPO ADICIONADO AQUI ***
     @Column(nullable = false)
-    private boolean monitored = false; // Por padrão, um link não é monitorado
-    // *** FIM DO NOVO CAMPO ***
+    private boolean monitored = false;
 
     @OneToMany(
             mappedBy = "link",
@@ -48,12 +46,22 @@ public class Link {
     )
     private List<CheckResult> checkResults = new ArrayList<>();
 
+
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private int consecutiveDownCount = 0;
+
+    @Column(length = 50) 
+    private String internalMonitoringStatus = "UNKNOWN";
+
     public Link(String url) {
         this.url = url;
+
     }
 
     public void addCheckResult(CheckResult result) {
         checkResults.add(result);
         result.setLink(this);
     }
+
+
 }

@@ -5,14 +5,13 @@ import br.cesar.school.linksentinel.model.Link;
 import br.cesar.school.linksentinel.repository.CheckResultRepository;
 import br.cesar.school.linksentinel.repository.LinkRepository;
 import br.cesar.school.linksentinel.service.observer.LinkStatusObserver;
-import br.cesar.school.linksentinel.service.strategy.VerificationStrategyType; // Importação está correta
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -24,9 +23,8 @@ public class MonitoringService {
     private final CheckResultRepository checkResultRepository;
     private final List<LinkStatusObserver> observers;
 
-    private static final String MONITORING_USERNAME = "system-monitor";
-
     @Scheduled(fixedRate = 60000, initialDelay = 15000)
+    @Transactional
     public void checkMonitoredLinks() {
         log.info("==== Iniciando verificação agendada de links monitorados ====");
         List<Link> monitoredLinks = linkRepository.findByMonitoredTrue();
@@ -37,35 +35,51 @@ public class MonitoringService {
             log.info("Encontrados {} links para monitorar.", monitoredLinks.size());
             for (Link link : monitoredLinks) {
                 log.info("Monitorando link: {}", link.getUrl());
-                CheckResult newResultFromVerification = null; // Renomeado para clareza
+                CheckResult currentCheckResult = null;
                 try {
-                    newResultFromVerification = linkVerificationService.performCheck(
-                            link.getUrl(),
-                            MONITORING_USERNAME,
-                            VerificationStrategyType.REDIRECT_CHECK
-                    );
-                    // Usar o resultado retornado pela verificação que foi salvo no BD
-                    log.info("Link {} verificado com sucesso pelo monitor. Status HTTP: {}", link.getUrl(), newResultFromVerification.getStatusCode()); // CORRIGIDO
+                    currentCheckResult = linkVerificationService.verifyLink(link);
 
-                    // Buscamos os dois últimos resultados do banco DEPOIS que o novo resultado da verificação foi salvo.
-                    // O 'newResultFromVerification' já é o mais recente e está no banco.
+                    if (currentCheckResult.getStatusCode() >= 200 && currentCheckResult.getStatusCode() < 400) {
+                        link.setConsecutiveDownCount(0);
+                        link.setInternalMonitoringStatus("UP");
+                    } else {
+                        link.setConsecutiveDownCount(link.getConsecutiveDownCount() + 1);
+                        if (link.getConsecutiveDownCount() >= 2) {
+                            link.setInternalMonitoringStatus("ALERTA_CRITICO_OFFLINE");
+                            log.warn("ALERTA CRITICO OFFLINE para o link {}: {} falhas consecutivas.", link.getUrl(), link.getConsecutiveDownCount());
+                        } else {
+                            link.setInternalMonitoringStatus("DOWN");
+                        }
+                    }
+                    linkRepository.save(link);
+                    log.info("Link {} atualizado. Status interno: {}, Falhas consecutivas: {}", link.getUrl(), link.getInternalMonitoringStatus(), link.getConsecutiveDownCount());
+
                     List<CheckResult> lastTwoResults = checkResultRepository.findTop2ByLinkOrderByCheckTimestampDesc(link);
-
-                    CheckResult currentResultInDb = null;
                     CheckResult previousResultInDb = null;
 
-                    if (!lastTwoResults.isEmpty()) {
-                        currentResultInDb = lastTwoResults.get(0); // Este é o newResultFromVerification
-                    }
                     if (lastTwoResults.size() > 1) {
-                        previousResultInDb = lastTwoResults.get(1); // Este é o resultado anterior a newResultFromVerification
+                        if (lastTwoResults.get(0).getId().equals(currentCheckResult.getId())) {
+                            previousResultInDb = lastTwoResults.get(1);
+                        } else {
+                             log.warn("O resultado mais recente no banco para o link {} (ID: {}) não corresponde ao resultado da verificação atual (ID: {}). O resultado anterior pode não ser o esperado para comparação.",
+                                link.getUrl(), lastTwoResults.get(0).getId(), currentCheckResult.getId());
+                             previousResultInDb = lastTwoResults.get(0);
+                        }
+                    } else if (lastTwoResults.size() == 1 && !lastTwoResults.get(0).getId().equals(currentCheckResult.getId())) {
+                        log.warn("Apenas um resultado no banco para o link {} e ele não é o atual. Considerado como sem histórico anterior para comparação.", link.getUrl());
                     }
-                    
-                    // Passar o resultado anterior (previousResultInDb) e o atual (currentResultInDb) para comparação.
-                    compareAndNotify(link, previousResultInDb, currentResultInDb);
+
+
+                    compareAndNotify(link, previousResultInDb, currentCheckResult);
 
                 } catch (Exception e) {
                     log.error("Erro ao verificar ou processar link monitorado {}: {}", link.getUrl(), e.getMessage(), e);
+                    try {
+                        link.setInternalMonitoringStatus("ERROR_MONITORING");
+                        linkRepository.save(link);
+                    } catch (Exception ex) {
+                        log.error("Erro ao tentar salvar status de erro para o link {}: {}", link.getUrl(), ex.getMessage(), ex);
+                    }
                 }
             }
         }
@@ -73,40 +87,50 @@ public class MonitoringService {
     }
 
     private void compareAndNotify(Link link, CheckResult oldResult, CheckResult newResult) {
-        if (newResult == null) { // newResult é o resultado atual da verificação
+        if (newResult == null) {
             log.warn("Tentativa de comparar com um novo resultado nulo para o link: {}", link.getUrl());
             return;
         }
 
         boolean significantChange = false;
-        if (oldResult == null) { // Não há resultado anterior no banco para comparar
+        if (oldResult == null) {
             significantChange = true;
-            log.info("Primeira verificação monitorada (ou sem histórico comparável) para {}. Status atual: HTTP {}, Acessível: {}",
-                    link.getUrl(), newResult.getStatusCode(), newResult.isAccessible()); // CORRIGIDO
+            log.info("Primeira verificação monitorada (ou sem histórico comparável) para {}. Status atual: HTTP {}, Acessível: {}. Status Interno Link: {}",
+                    link.getUrl(), newResult.getStatusCode(), newResult.isAccessible(), link.getInternalMonitoringStatus());
         } else {
-            // Compara acessibilidade
-            if (oldResult.isAccessible() != newResult.isAccessible()) { // CORRIGIDO
+            if (oldResult.isAccessible() != newResult.isAccessible()) {
                 significantChange = true;
-                log.info("Mudança na acessibilidade detectada para {}: de {} para {}",
-                        link.getUrl(), oldResult.isAccessible(), newResult.isAccessible()); // CORRIGIDO
+                log.info("Mudança na acessibilidade detectada para {}: de {} para {}. Status Interno Link: {}",
+                        link.getUrl(), oldResult.isAccessible(), newResult.isAccessible(), link.getInternalMonitoringStatus());
             }
-            // Compara status code
-            if (oldResult.getStatusCode() != newResult.getStatusCode()) { // CORRIGIDO
+            if (oldResult.getStatusCode() != newResult.getStatusCode()) {
                 significantChange = true;
-                log.info("Mudança no status HTTP detectada para {}: de {} para {}",
-                        link.getUrl(), oldResult.getStatusCode(), newResult.getStatusCode()); // CORRIGIDO
+                log.info("Mudança no status HTTP detectada para {}: de {} para {}. Status Interno Link: {}",
+                        link.getUrl(), oldResult.getStatusCode(), newResult.getStatusCode(), link.getInternalMonitoringStatus());
+            }
+            if (!link.getInternalMonitoringStatus().equals(oldResult.getLink() != null ? oldResult.getLink().getInternalMonitoringStatus() : "UNKNOWN") && !"ERROR_MONITORING".equals(link.getInternalMonitoringStatus())) {
+                 // Esta comparação do internalMonitoringStatus pode ser complexa se oldResult.getLink() não estiver atualizado
+                 // ou se o estado de 'link' no oldResult for diferente do estado atual de 'link' (o objeto).
+                 // A notificação baseada no estado atual do 'link' já persistido é mais confiável.
+                 // Vamos considerar a mudança no link.getInternalMonitoringStatus() como significativa
+                 // para garantir que os observadores sejam notificados do novo status de alerta.
+                 // No entanto, a lógica de 'significantChange' atual foca nos CheckResults.
+                 // O link atualizado já é passado para notifyObservers.
             }
         }
 
-        if (significantChange) {
-            notifyObservers(link, oldResult, newResult); // oldResult pode ser null aqui
+        if (significantChange || "ALERTA_CRITICO_OFFLINE".equals(link.getInternalMonitoringStatus()) || "ERROR_MONITORING".equals(link.getInternalMonitoringStatus())) {
+           if(!significantChange){
+                log.info("Notificando devido a status crítico ou erro de monitoramento para {}. Status: {}", link.getUrl(), link.getInternalMonitoringStatus());
+           }
+            notifyObservers(link, oldResult, newResult);
         } else {
-            log.info("Nenhuma mudança significativa detectada para o link {}", link.getUrl());
+            log.info("Nenhuma mudança significativa (baseada em CheckResult) ou alerta crítico novo detectado para o link {} para acionar notificação primária. Status Interno: {}", link.getUrl(), link.getInternalMonitoringStatus());
         }
     }
 
     private void notifyObservers(Link link, CheckResult oldResult, CheckResult newResult) {
-        log.info("Notificando {} observadores sobre mudança no link {}", observers.size(), link.getUrl());
+        log.info("Notificando {} observadores sobre o link {}", observers.size(), link.getUrl());
         for (LinkStatusObserver observer : observers) {
             try {
                 observer.onStatusChange(link, oldResult, newResult);
