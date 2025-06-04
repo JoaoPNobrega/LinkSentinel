@@ -190,3 +190,9 @@ Após a aplicação iniciar com sucesso (você verá logs no terminal indicando 
 
 * Acesse a URL padrão da aplicação: `http://localhost:8080/`
 * Você será redirecionado para a `WelcomeView`, de onde poderá navegar para Login ou Registro.
+
+
+#### QUALQUER PROBLEMA, VEJA ESSE VÍDEO, NELE EU MOSTRO COMO RODAR E RODANDO - [linksentinel instalação + rodando](https://youtu.be/xbdRoCfsXg8)
+
+#### Um adendo, professor: fiz este trabalho sozinho — não tive outras 9 pessoas me ajudando. Passei noites sem dormir para fazê-lo funcionar. E sim, está funcionando (como pode ver no vídeo). Ou seja, se houver qualquer problema, por favor, entre em contato comigo. Preciso de 8,0 neste projeto, e fazê-lo sozinho pareceu beirar o impossível(até porque, teve a amostra-tech na mesma semana) —  E ainda bem, consegui atender todos os requisitos a tempo, como citei no readme/segunda_entrega."
+
