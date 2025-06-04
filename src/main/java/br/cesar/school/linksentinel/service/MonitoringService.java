@@ -109,13 +109,7 @@ public class MonitoringService {
                         link.getUrl(), oldResult.getStatusCode(), newResult.getStatusCode(), link.getInternalMonitoringStatus());
             }
             if (!link.getInternalMonitoringStatus().equals(oldResult.getLink() != null ? oldResult.getLink().getInternalMonitoringStatus() : "UNKNOWN") && !"ERROR_MONITORING".equals(link.getInternalMonitoringStatus())) {
-                 // Esta comparação do internalMonitoringStatus pode ser complexa se oldResult.getLink() não estiver atualizado
-                 // ou se o estado de 'link' no oldResult for diferente do estado atual de 'link' (o objeto).
-                 // A notificação baseada no estado atual do 'link' já persistido é mais confiável.
-                 // Vamos considerar a mudança no link.getInternalMonitoringStatus() como significativa
-                 // para garantir que os observadores sejam notificados do novo status de alerta.
-                 // No entanto, a lógica de 'significantChange' atual foca nos CheckResults.
-                 // O link atualizado já é passado para notifyObservers.
+
             }
         }
 

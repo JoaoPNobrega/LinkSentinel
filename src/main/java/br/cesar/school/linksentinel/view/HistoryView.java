@@ -13,14 +13,13 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
-// Removido Span não utilizado
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.renderer.TextRenderer; // Adicionado para formatação do Uptime
+import com.vaadin.flow.data.renderer.TextRenderer; 
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
@@ -94,11 +93,11 @@ public class HistoryView extends VerticalLayout {
                 }))
                 .setHeader("Uptime Link (%)")
                 .setKey("linkUptime")
-                .setSortable(false) // Ordenar isso pode ser complexo/caro aqui; pode-se implementar comparador se necessário
+                .setSortable(false) 
                 .setFlexGrow(0).setWidth("140px");
 
         grid.addColumn(CheckResult::getStatusCode)
-                .setHeader("Status HTTP").setSortable(true).setFlexGrow(0).setWidth("120px"); // Nome do header alterado para clareza
+                .setHeader("Status HTTP").setSortable(true).setFlexGrow(0).setWidth("120px");
         grid.addColumn(result -> result.isAccessible() ? "Sim" : "Não")
                 .setHeader("Acessível?").setSortable(true).setFlexGrow(0).setWidth("120px");
         grid.addColumn(CheckResult::getFinalUrl)
@@ -110,14 +109,14 @@ public class HistoryView extends VerticalLayout {
             monitoredCheckbox.addValueChangeListener(event -> {
                 try {
                     linkService.toggleLinkMonitoring(link.getId());
-                    link.setMonitored(event.getValue()); // Optimistic update
+                    link.setMonitored(event.getValue()); //
                     Notification.show("Monitoramento de '" + সংক্ষিপ্তUrl(link.getUrl()) + "' alterado.",
                                     2000, Notification.Position.BOTTOM_START)
                             .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 } catch (Exception e) {
                     Notification.show("Erro: " + e.getMessage(), 3000, Notification.Position.BOTTOM_START)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    monitoredCheckbox.setValue(link.isMonitored()); // Revert on error
+                    monitoredCheckbox.setValue(link.isMonitored()); 
                 }
             });
             return monitoredCheckbox;

@@ -168,9 +168,9 @@ BoundedContext HistoricoContext implements RelatoriosHistorico {
         ValueObject RelatorioUptimeId { Long valor }
         ValueObject PorcentagemUptime { 
             double valor
-            def boolean isAlto(); // return valor >= 95.0
-            def boolean isMedio(); // return valor >= 80.0 && valor < 95.0
-            def boolean isBaixo(); // return valor < 80.0
+            def boolean isAlto();
+            def boolean isMedio();
+            def boolean isBaixo();
         }
         ValueObject Periodo {
             Date inicio

@@ -86,8 +86,8 @@ public class LinkVerificationService {
         CheckResult initialCheckResult = CheckResult.builder()
                                             .link(link)
                                             .user(link.getCheckResults() != null && !link.getCheckResults().isEmpty() && link.getCheckResults().get(0) != null ? 
-                                                  link.getCheckResults().get(0).getUser() : null) // Tenta obter o usuário do último check, se houver.
-                                                                                                // Ajuste esta lógica se o Link tiver uma associação direta com User.
+                                                  link.getCheckResults().get(0).getUser() : null)
+                                                                                                
                                             .originalUrl(link.getUrl())
                                             .build();
 

@@ -2,4 +2,5 @@ br\cesar\school\linksentinel\bdd\CucumberRunner.class
 br\cesar\school\linksentinel\bdd\steps\VerificacaoLinkSteps.class
 br\cesar\school\linksentinel\bdd\steps\MonitoramentoAgendadoSteps.class
 br\cesar\school\linksentinel\bdd\steps\RegistroUsuarioSteps.class
+br\cesar\school\linksentinel\bdd\steps\CommonSteps.class
 br\cesar\school\linksentinel\bdd\steps\LoginUsuarioSteps.class
