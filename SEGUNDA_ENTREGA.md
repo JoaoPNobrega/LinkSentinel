@@ -132,33 +132,61 @@ Para executar o sistema Link Sentinel localmente, siga os passos abaixo:
 
 ### 4.1. Pré-requisitos
 
-* **Java Development Kit (JDK) 17 ou superior**
-* **Apache Maven** (instalado e configurado no PATH do sistema)
+Para que o projeto funcione perfeitamente, você precisará ter os seguintes softwares instalados no seu computador:
+
+* **Java Development Kit (JDK) 17**:
+    * **⚠️ PONTO CRÍTICO**: Este projeto foi desenvolvido e configurado especificamente para o **Java 17**. É de **extrema importância** que você utilize exatamente esta versão do JDK. Versões mais novas (como Java 21, Java 22, etc.) **NÃO funcionarão** corretamente com este projeto devido a diferenças de compatibilidade.
+    * **Como Obter o JDK 17**:
+        A forma mais fácil e recomendada de obter o JDK 17 é através do **Adoptium (Eclipse Temurin)**, que oferece builds OpenJDK confiáveis:
+        * Acesse o link: [https://adoptium.net/temurin/releases/?version=17](https://adoptium.net/temurin/releases/?version=17)
+        * Baixe o instalador compatível com o seu sistema operacional (ex: `jdk-17.0.x_y_windows-x64_bin.msi` para Windows, `jdk-17.0.x_y_macos-x64_bin.dmg` para macOS).
+    * **Como Verificar a Versão do Java**:
+        Após a instalação, abra o seu `Terminal` (Linux/macOS) ou `Prompt de Comando`/`PowerShell` (Windows) e digite:
+        ```bash
+        java -version
+        ```
+        A saída **DEVE** começar com `openjdk version "17.0.x"` ou `java version "17.0.x"`. Se a versão for diferente, certifique-se de que o JDK 17 está instalado corretamente e que suas variáveis de ambiente (`JAVA_HOME` e `Path`) estão apontando para ele.
+
+* **Apache Maven 3.6.0 ou superior**:
+    * Maven é a ferramenta que gerencia as dependências do projeto e o processo de construção (compilação).
+    * Você pode baixá-lo em: [https://maven.apache.org/download.cgi](https://maven.apache.org/download.cgi)
+    * **Como Verificar a Versão do Maven**:
+        No mesmo `Terminal`/`Prompt de Comando`, digite:
+        ```bash
+        mvn -v
+        ```
+        A saída deve mostrar "Apache Maven 3.x.x" (onde x.x é 6.0 ou superior).
 
 ### 4.2. Como Executar
 
-1.  **Clone o repositório:**
+Este projeto utiliza o banco de dados **H2 em modo de arquivo**, o que significa que **você não precisa instalar nem configurar um banco de dados externo**. O H2 é iniciado automaticamente e os arquivos do banco de dados são gerenciados pelo próprio projeto na primeira execução.
+
+1.  **Clone o Repositório**:
+    Abra seu terminal ou prompt de comando e execute:
     ```bash
-    git clone [https://github.com/JoaoPNobrega/LinkSentinela.git](https://github.com/JoaoPNobrega/LinkSentinela.git)
-    cd LinkSentinela
+    git clone [https://github.com/JoaoPNobrega/LinkSentinel.git](https://github.com/JoaoPNobrega/LinkSentinel.git)
+    cd LinkSentinel
     ```
-2.  **Compile e Baixe Dependências:**
+    * **Observação:** O nome da pasta após o clone pode ser `LinkSentinel` ou `LinkSentinel-algumhash`. Certifique-se de navegar para a pasta correta que contém o arquivo `pom.xml`.
+
+2.  **Compile e Baixe Dependências**:
     * Abra o terminal na raiz do projeto (onde está o `pom.xml`).
     * Execute o comando Maven para construir o projeto e baixar todas as dependências:
         ```bash
         mvn clean install
         ```
-        Aguarde até ver `BUILD SUCCESS`.
-3.  **Iniciar a Aplicação Spring Boot:**
-    * No mesmo terminal (na raiz do projeto), execute:
+    * Aguarde até ver a mensagem `BUILD SUCCESS`.
+
+3.  **Iniciar a Aplicação Spring Boot**:
+    * No mesmo terminal (ainda na raiz do projeto), execute o comando para iniciar a aplicação:
         ```bash
         mvn spring-boot:run
         ```
-    * Alternativamente, você pode usar sua IDE (VS Code, IntelliJ IDEA, Eclipse) para rodar a classe principal `App.java`.
+    * Alternativamente, você pode usar sua IDE (VS Code, IntelliJ IDEA, Eclipse) para rodar a classe principal `App.java` (localizada em `src/main/java/br/cesar/school/linksentinel/App.java`). **Lembre-se de configurar o JDK 17 na sua IDE.**
 
 ### 4.3. Acesso à Página Inicial
 
-* Após a aplicação iniciar com sucesso (você verá logs no terminal indicando que o servidor Spring Boot está ativo), abra seu navegador.
-* Acesse a URL padrão da aplicação:
-    `http://localhost:8080/`
+Após a aplicação iniciar com sucesso (você verá logs no terminal indicando que o servidor Spring Boot está ativo e escutando na porta 8080), abra seu navegador.
+
+* Acesse a URL padrão da aplicação: `http://localhost:8080/`
 * Você será redirecionado para a `WelcomeView`, de onde poderá navegar para Login ou Registro.
